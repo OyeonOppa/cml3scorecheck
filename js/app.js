@@ -53,30 +53,38 @@ function displayDashboard() {
     document.getElementById('loginSection').classList.remove('active');
     document.getElementById('dashboardSection').classList.add('active');
     
-    // Display student info
+    // Display student info (ไม่แสดงเลขบัตร)
     const student = currentStudent.student;
     document.getElementById('studentPhoto').src = student.photoUrl || 'https://via.placeholder.com/80';
     document.getElementById('studentName').textContent = `${student.firstName} ${student.lastName}`;
-    document.getElementById('studentId').textContent = `เลขบัตร: ${student.idCard}`;
     
     // Calculate statistics
     const attendance = currentStudent.attendance || [];
     const totalHoursAttended = attendance.reduce((sum, record) => sum + (parseFloat(record.hoursReceived) || 0), 0);
-    // ชั่วโมงเต็มเฉพาะคาบที่ผ่านมาแล้ว (ไม่ใช่ทั้งหลักสูตร)
     const totalHoursSoFar = attendance.reduce((sum, record) => sum + (parseFloat(record.totalHours) || 0), 0);
+    
+    // ชั่วโมงทั้งหลักสูตร (267) จาก API summary
+    const totalHoursFull = parseFloat(currentStudent.summary?.totalHoursFull) || totalHoursSoFar;
+    
+    // เปอร์เซ็นต์เทียบกับคาบที่ผ่านมาแล้ว (แสดงในการ์ด)
     const attendancePercent = totalHoursSoFar > 0 
         ? ((totalHoursAttended / totalHoursSoFar) * 100).toFixed(2) 
         : '0.00';
     
-    // Display statistics
-document.getElementById('totalHours').textContent = Math.floor(totalHoursAttended);
-document.getElementById('totalHoursMax').textContent = Math.floor(totalHoursSoFar);
+    // Display statistics (ไม่มี .0)
+    document.getElementById('totalHours').textContent = Math.floor(totalHoursAttended);
+    document.getElementById('totalHoursMax').textContent = Math.floor(totalHoursSoFar);
     document.getElementById('attendancePercent').textContent = `${attendancePercent}%`;
-    document.getElementById('progressHours').textContent = totalHoursAttended.toFixed(1);
     
-    // Update progress bar
+    // หลอด scale ตามชั่วโมงทั้งหลักสูตรจริง (267)
+    const realPercent = totalHoursFull > 0 
+        ? (totalHoursAttended / totalHoursFull) * 100 
+        : 0;
     const progressFill = document.getElementById('progressFill');
-    progressFill.style.width = `${Math.min(attendancePercent, 100)}%`;
+    progressFill.style.width = `${Math.min(realPercent, 100)}%`;
+    
+    // ข้อความข้างหลอด เช่น "42 / 267 ชั่วโมง"
+    document.getElementById('progressHours').textContent = `${Math.floor(totalHoursAttended)} / ${Math.floor(totalHoursFull)}`;
     
     // Display attendance table
     displayAttendanceTable(attendance);
