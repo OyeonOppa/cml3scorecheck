@@ -130,3 +130,5 @@ function logout() {
     document.getElementById('loginSection').classList.add('active');
     document.getElementById('idCardInput').value = '';
 }
+
+// ทดสอบ API ด้วยการจำลองข้อมูล (สำหรับการพัฒนา)
