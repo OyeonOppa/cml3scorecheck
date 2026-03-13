@@ -60,7 +60,7 @@ function displayDashboard() {
     
     // Display student info (ไม่แสดงเลขบัตร)
     const student = currentStudent.student;
-    document.getElementById('studentPhoto').src = student.photoUrl || 'https://via.placeholder.com/80';
+    document.getElementById('studentPhoto').src = student.photoUrl || '';
     document.getElementById('studentName').textContent = `${student.firstName} ${student.lastName}`;
     
     // Calculate statistics
