@@ -58,10 +58,33 @@ function displayDashboard() {
     document.getElementById('loginSection').classList.remove('active');
     document.getElementById('dashboardSection').classList.add('active');
     
-    // Display student info (ไม่แสดงเลขบัตร)
+    // Display student info
     const student = currentStudent.student;
-    document.getElementById('studentPhoto').src = student.photoUrl || '';
+
+    // แสดงชื่อ + ชื่อเล่น
     document.getElementById('studentName').textContent = `${student.firstName} ${student.lastName}`;
+    document.getElementById('studentNickname').textContent = student.nickname ? `(${student.nickname})` : '';
+
+    // แสดงรูป — แปลง http → https ป้องกัน mixed content
+    const photoUrl = student.photoUrl ? student.photoUrl.replace(/^http:\/\//i, 'https://') : '';
+    const photoEl = document.getElementById('studentPhoto');
+    if (photoUrl) {
+        photoEl.src = photoUrl;
+        photoEl.style.display = 'block';
+        photoEl.onerror = function() {
+            // ถ้าโหลดไม่ได้ → แสดงตัวอักษรย่อแทน
+            this.style.display = 'none';
+            document.getElementById('studentPhotoFallback').textContent =
+                (student.firstName || '?').charAt(0).toUpperCase();
+            document.getElementById('studentPhotoFallback').style.display = 'flex';
+            this.onerror = null;
+        };
+    } else {
+        photoEl.style.display = 'none';
+        document.getElementById('studentPhotoFallback').textContent =
+            (student.firstName || '?').charAt(0).toUpperCase();
+        document.getElementById('studentPhotoFallback').style.display = 'flex';
+    }
     
     // Calculate statistics
     const attendance = currentStudent.attendance || [];
