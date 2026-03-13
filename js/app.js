@@ -3,12 +3,18 @@ let currentStudent = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    // Enter key to submit
     document.getElementById('idCardInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             checkAttendance();
         }
     });
 });
+
+// Format Hours (42 → "42", 42.5 → "42.5", 42.0 → "42")
+function formatHours(hours) {
+    return hours % 1 === 0 ? hours.toFixed(0) : hours.toFixed(1);
+}
 
 // Check Attendance Function
 async function checkAttendance() {
@@ -17,16 +23,20 @@ async function checkAttendance() {
     const errorMsg = document.getElementById('errorMsg');
     const loading = document.getElementById('loading');
     
+    // Reset error
     errorMsg.classList.remove('show');
     
+    // Validate ID Card
     if (!idCard || idCard.length !== 13 || !/^\d{13}$/.test(idCard)) {
         showError(CONFIG.MESSAGES.INVALID_ID);
         return;
     }
     
+    // Show loading
     loading.classList.add('show');
     
     try {
+        // Fetch data from Google Sheets
         const data = await API.getStudentData(idCard);
         
         if (data.success && data.student) {
@@ -42,44 +52,46 @@ async function checkAttendance() {
     }
 }
 
-// แปลง URL รูปให้เป็น HTTPS เสมอ
-function toHttpsImage(url) {
-    if (!url) return 'https://via.placeholder.com/80';
-    if (url.startsWith('http://')) {
-        return `https://images.weserv.nl/?url=${encodeURIComponent(url)}`;
-    }
-    return url;
-}
-
 // Display Dashboard
 function displayDashboard() {
+    // Hide login, show dashboard
     document.getElementById('loginSection').classList.remove('active');
     document.getElementById('dashboardSection').classList.add('active');
     
+    // Display student info (ไม่แสดงเลขบัตร)
     const student = currentStudent.student;
-    document.getElementById('studentPhoto').src = toHttpsImage(student.photoUrl);
+    document.getElementById('studentPhoto').src = student.photoUrl || 'https://via.placeholder.com/80';
     document.getElementById('studentName').textContent = `${student.firstName} ${student.lastName}`;
     
+    // Calculate statistics
     const attendance = currentStudent.attendance || [];
     const totalHoursAttended = attendance.reduce((sum, record) => sum + (parseFloat(record.hoursReceived) || 0), 0);
     const totalHoursSoFar = attendance.reduce((sum, record) => sum + (parseFloat(record.totalHours) || 0), 0);
     
+    // ชั่วโมงทั้งหลักสูตร (267) จาก API summary
     const totalHoursFull = parseFloat(currentStudent.summary?.totalHoursFull) || totalHoursSoFar;
     
+    // เปอร์เซ็นต์เทียบกับคาบที่ผ่านมาแล้ว (แสดงในการ์ด)
     const attendancePercent = totalHoursSoFar > 0 
         ? ((totalHoursAttended / totalHoursSoFar) * 100).toFixed(2) 
         : '0.00';
     
-    document.getElementById('totalHours').textContent = Math.floor(totalHoursAttended);
-    document.getElementById('totalHoursMax').textContent = Math.floor(totalHoursSoFar);
+    // Display statistics
+    document.getElementById('totalHours').textContent = formatHours(totalHoursAttended);
+    document.getElementById('totalHoursMax').textContent = formatHours(totalHoursSoFar);
     document.getElementById('attendancePercent').textContent = `${attendancePercent}%`;
     
+    // หลอด scale ตามชั่วโมงทั้งหลักสูตรจริง (267)
     const realPercent = totalHoursFull > 0 
         ? (totalHoursAttended / totalHoursFull) * 100 
         : 0;
-    document.getElementById('progressFill').style.width = `${Math.min(realPercent, 100)}%`;
-    document.getElementById('progressHours').textContent = `${Math.floor(totalHoursAttended)} / ${Math.floor(totalHoursFull)}`;
+    const progressFill = document.getElementById('progressFill');
+    progressFill.style.width = `${Math.min(realPercent, 100)}%`;
     
+    // ข้อความข้างหลอด เช่น "42.5 / 267 ชั่วโมง"
+    document.getElementById('progressHours').textContent = `${formatHours(totalHoursAttended)} / ${formatHours(totalHoursFull)}`;
+    
+    // Display attendance table
     displayAttendanceTable(attendance);
 }
 
@@ -100,8 +112,8 @@ function displayAttendanceTable(attendance) {
             <td>${record.time}</td>
             <td>${record.location}</td>
             <td>${record.details}</td>
-            <td>${record.totalHours}</td>
-            <td>${record.hoursReceived}</td>
+            <td>${formatHours(parseFloat(record.totalHours) || 0)}</td>
+            <td>${formatHours(parseFloat(record.hoursReceived) || 0)}</td>
             <td class="${statusClass}">${status}</td>
         `;
         
@@ -130,6 +142,3 @@ function logout() {
     document.getElementById('loginSection').classList.add('active');
     document.getElementById('idCardInput').value = '';
 }
-
-// ทดสอบ API ด้วยการจำลองข้อมูล (สำหรับการพัฒนา)
-// อีกที
