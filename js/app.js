@@ -3,7 +3,6 @@ let currentStudent = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    // Enter key to submit
     document.getElementById('idCardInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             checkAttendance();
@@ -23,22 +22,17 @@ async function checkAttendance() {
     const errorMsg = document.getElementById('errorMsg');
     const loading = document.getElementById('loading');
     
-    // Reset error
     errorMsg.classList.remove('show');
     
-    // Validate ID Card
     if (!idCard || idCard.length !== 13 || !/^\d{13}$/.test(idCard)) {
         showError(CONFIG.MESSAGES.INVALID_ID);
         return;
     }
     
-    // Show loading
     loading.classList.add('show');
     
     try {
-        // Fetch data from Google Sheets
         const data = await API.getStudentData(idCard);
-        
         if (data.success && data.student) {
             currentStudent = data;
             displayDashboard();
@@ -52,46 +46,89 @@ async function checkAttendance() {
     }
 }
 
+// แสดงตัวอักษรย่อในกรอบรูป (fallback)
+function showPhotoFallback(firstName) {
+    const photoEl = document.getElementById('studentPhoto');
+    const initial = (firstName || '?').charAt(0).toUpperCase();
+
+    // ซ่อน img แล้วแปลงกรอบเป็นวงกลมตัวอักษรแทน
+    photoEl.style.display = 'none';
+
+    // สร้าง fallback div ถ้ายังไม่มี
+    let fallback = document.getElementById('photoFallback');
+    if (!fallback) {
+        fallback = document.createElement('div');
+        fallback.id = 'photoFallback';
+        fallback.style.cssText = `
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #4a90e2;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        `;
+        photoEl.parentNode.insertBefore(fallback, photoEl);
+    }
+    fallback.textContent = initial;
+    fallback.style.display = 'flex';
+}
+
 // Display Dashboard
 function displayDashboard() {
-    // Hide login, show dashboard
     document.getElementById('loginSection').classList.remove('active');
     document.getElementById('dashboardSection').classList.add('active');
-    
-    // Display student info (ไม่แสดงเลขบัตร)
+
     const student = currentStudent.student;
-    // document.getElementById('studentPhoto').src = student.photoUrl || '';
+
+    // ชื่อ-สกุล
     document.getElementById('studentName').textContent = `${student.firstName} ${student.lastName}`;
-    
+
+    // ชื่อเล่น
+    const nicknameEl = document.getElementById('studentNickname');
+    if (nicknameEl) {
+        nicknameEl.textContent = student.nickname ? `(${student.nickname})` : '';
+    }
+
+    // รูปภาพ
+    const photoEl = document.getElementById('studentPhoto');
+    const fallback = document.getElementById('photoFallback');
+    if (fallback) fallback.style.display = 'none'; // reset
+
+    if (student.photoUrl) {
+        const safeUrl = student.photoUrl.replace(/^http:\/\//i, 'https://');
+        photoEl.style.display = 'block';
+        photoEl.src = safeUrl;
+        photoEl.onerror = function() {
+            this.onerror = null;
+            showPhotoFallback(student.firstName);
+        };
+    } else {
+        showPhotoFallback(student.firstName);
+    }
+
     // Calculate statistics
     const attendance = currentStudent.attendance || [];
-    const totalHoursAttended = attendance.reduce((sum, record) => sum + (parseFloat(record.hoursReceived) || 0), 0);
-    const totalHoursSoFar = attendance.reduce((sum, record) => sum + (parseFloat(record.totalHours) || 0), 0);
-    
-    // ชั่วโมงทั้งหลักสูตร (267) จาก API summary
+    const totalHoursAttended = attendance.reduce((sum, r) => sum + (parseFloat(r.hoursReceived) || 0), 0);
+    const totalHoursSoFar = attendance.reduce((sum, r) => sum + (parseFloat(r.totalHours) || 0), 0);
     const totalHoursFull = parseFloat(currentStudent.summary?.totalHoursFull) || totalHoursSoFar;
-    
-    // เปอร์เซ็นต์เทียบกับคาบที่ผ่านมาแล้ว (แสดงในการ์ด)
-    const attendancePercent = totalHoursSoFar > 0 
-        ? ((totalHoursAttended / totalHoursSoFar) * 100).toFixed(2) 
+
+    const attendancePercent = totalHoursSoFar > 0
+        ? ((totalHoursAttended / totalHoursSoFar) * 100).toFixed(2)
         : '0.00';
-    
-    // Display statistics
+
     document.getElementById('totalHours').textContent = formatHours(totalHoursAttended);
     document.getElementById('totalHoursMax').textContent = formatHours(totalHoursSoFar);
     document.getElementById('attendancePercent').textContent = `${attendancePercent}%`;
-    
-    // หลอด scale ตามชั่วโมงทั้งหลักสูตรจริง (267)
-    const realPercent = totalHoursFull > 0 
-        ? (totalHoursAttended / totalHoursFull) * 100 
-        : 0;
-    const progressFill = document.getElementById('progressFill');
-    progressFill.style.width = `${Math.min(realPercent, 100)}%`;
-    
-    // ข้อความข้างหลอด เช่น "42.5 / 267 ชั่วโมง"
+
+    const realPercent = totalHoursFull > 0 ? (totalHoursAttended / totalHoursFull) * 100 : 0;
+    document.getElementById('progressFill').style.width = `${Math.min(realPercent, 100)}%`;
     document.getElementById('progressHours').textContent = `${formatHours(totalHoursAttended)} / ${formatHours(totalHoursFull)}`;
-    
-    // Display attendance table
+
     displayAttendanceTable(attendance);
 }
 
@@ -99,13 +136,12 @@ function displayDashboard() {
 function displayAttendanceTable(attendance) {
     const tbody = document.getElementById('attendanceBody');
     tbody.innerHTML = '';
-    
+
     attendance.forEach((record, index) => {
         const row = document.createElement('tr');
-        
         const status = parseFloat(record.hoursReceived) > 0 ? 'มา' : 'ขาด';
         const statusClass = status === 'มา' ? 'status-present' : 'status-absent';
-        
+
         row.innerHTML = `
             <td>${index + 1}</td>
             <td>${formatDate(record.date)}</td>
@@ -116,7 +152,6 @@ function displayAttendanceTable(attendance) {
             <td>${formatHours(parseFloat(record.hoursReceived) || 0)}</td>
             <td class="${statusClass}">${status}</td>
         `;
-        
         tbody.appendChild(row);
     });
 }
@@ -124,8 +159,7 @@ function displayAttendanceTable(attendance) {
 // Format Date
 function formatDate(dateStr) {
     const date = new Date(dateStr);
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return date.toLocaleDateString('th-TH', options);
+    return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 // Show Error
