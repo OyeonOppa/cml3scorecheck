@@ -152,7 +152,7 @@ function displayAttendanceTable(attendance) {
             <td>${formatHours(parseFloat(record.hoursReceived) || 0)}</td>
             <td class="${statusClass}">${status}</td>
         `;
-        tbody.appendChild(row);
+        tbody.appendChild(row);ญ
     });
 }
 
